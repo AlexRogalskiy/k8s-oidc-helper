@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -30,6 +29,7 @@ func main() {
 	flag.String("client-secret", "", "The ClientSecret for the application")
 	flag.StringP("config", "c", "", "Path to a json file containing your application's ClientID and ClientSecret. Supercedes the --client-id and --client-secret flags.")
 	flag.Bool("no-client-secret", false, "Exclude client-secret from kubeconfig.")
+	flag.String("user", "", "Name of user object in kubeconfig.")
 	flag.BoolP("write", "w", false, "Write config to file. Merges in the specified file")
 	flag.String("file", "", "The file to write to. If not specified, `~/.kube/config` is used")
 
@@ -78,10 +78,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	email, err := helper.GetUserEmail(tokResponse.AccessToken)
-	if err != nil {
-		fmt.Printf("Error getting user email: %s\n", err)
-		os.Exit(1)
+	user := viper.GetString("user")
+	if user == "" {
+		user, err = helper.GetUserEmail(tokResponse.AccessToken)
+		if err != nil {
+			fmt.Printf("Error getting user email: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	var authInfo *clientcmdapi.AuthInfo
@@ -92,7 +95,7 @@ func main() {
 	}
 
 	config := &clientcmdapi.Config{
-		AuthInfos: map[string]*clientcmdapi.AuthInfo{email: authInfo},
+		AuthInfos: map[string]*clientcmdapi.AuthInfo{user: authInfo},
 	}
 
 	if !viper.GetBool("write") {
